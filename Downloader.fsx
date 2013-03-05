@@ -4,6 +4,7 @@ open System.IO
 open System.Net
 open System.Text
 open System.Text.RegularExpressions
+open System.Threading.Tasks
 open HtmlAgilityPack
 
 // Unfortunatly, it doesn't work :(
@@ -34,6 +35,11 @@ let processSubcategory (ulNode : HtmlNode) =
         )
   ]
 
+let folder = 
+  match fsi.CommandLineArgs.Length with
+    x when x < 2 -> @".\"
+    |_ -> fsi.CommandLineArgs.[1] + @"\"
+
 let books = 
   [
     for category in content.SelectNodes("//h2") do
@@ -49,36 +55,29 @@ let books =
           | x, y when x = y -> yield (x + @"\", fst book, snd book)
           | x, y -> yield (x + @"\" + y + @"\", fst book, snd book)      
   ]
-
-let folder = 
-  match fsi.CommandLineArgs.Length with
-    x when x < 2 -> @".\"
-    |_ -> fsi.CommandLineArgs.[1] + @"\"
-
-let download jobs = 
-  let tasks =
-    jobs |> List.map (fun x -> 
+  |> List.map (fun x -> 
       let p, (l : string), n = x
       let n' = 
         match n with
           Match @"([\w\s,]*)\.(.*)\s*\(.*\)" result -> result.[0] + "."+ result.[1]
           | _ -> failwith "Matching error"
-        //rx.Matches(n) |> fun y -> y.[1].Value + "." + y.[2].Value + "."
       let n'' = 
         n'.Replace('(','_').Replace(')', '_').Replace('?', '.').Replace(':', '-') + 
           l.Substring(l.LastIndexOf('.'))
         |> fun y -> y.TrimEnd([|' '|]);
       folder + p + n'', l)
-    |> List.toArray
+
+let spawnDownloadTask task = 
   let client = new WebClient()
-  Array.iter(fun task -> 
+  Task.Factory.StartNew(fun () -> 
     printfn "Downloading %s -> %s" (snd task) (fst task)
     (fst task).Substring(0, (fst task).LastIndexOf(@"\"))
     |> fun dir -> Directory.CreateDirectory(dir)
     |> ignore
-    client.DownloadFile(new System.Uri(snd task), fst task)) tasks
+    client.DownloadFile(new System.Uri(snd task), fst task))
 
 printfn "Downloading to folder : %s" folder
-download books
+let downloadTasks = books |> List.map spawnDownloadTask |> List.toArray
+Task.WaitAll(downloadTasks)
 printfn "Done!"
 System.Console.ReadLine()
