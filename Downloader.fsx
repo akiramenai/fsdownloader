@@ -35,10 +35,15 @@ let processSubcategory (ulNode : HtmlNode) =
         )
   ]
 
-let folder = 
+fsi.CommandLineArgs |> Array.iter (printf "%s ")
+printfn ""
+
+let folder, concurLevel = 
   match fsi.CommandLineArgs.Length with
-    x when x < 2 -> @".\"
-    |_ -> fsi.CommandLineArgs.[1] + @"\"
+    x when x < 2 -> @".\", 4
+    |x when x < 3 -> fsi.CommandLineArgs.[1] + @"\", 4
+    |x when x = 3 -> fsi.CommandLineArgs.[1] + @"\", int fsi.CommandLineArgs.[2]
+    |_ -> failwith "Wrong number of command line attributes"
 
 let books = 
   [
@@ -67,21 +72,25 @@ let books =
         |> fun y -> y.TrimEnd([|' '|]);
       folder + p + n'', l)
 
+let counter = ref 0
+let size = List.length books
+
 let downloadTask task = 
   let client = new WebClient()
   new System.Action(fun () -> 
-    printfn "Downloading..."
     fst task 
     |> fun (t:string) -> t.Substring(0, t.LastIndexOf(@"\"))
     |> fun dir -> Directory.CreateDirectory(dir)
     |> ignore
     client.DownloadFile(new System.Uri(snd task), fst task)
-    printfn "Downloaded!")
+    lock(counter) ( fun () ->
+      counter := !counter + 1
+      printfn "Complite %d of %d" !counter size))
 
 printfn "Downloading to folder : %s" folder
 let dTasks = books |> List.map downloadTask |> List.toArray
 let parOpts = new ParallelOptions()
-parOpts.MaxDegreeOfParallelism <- 4
+parOpts.MaxDegreeOfParallelism <- concurLevel
 Parallel.Invoke(parOpts, dTasks)
 printfn "Done!"  
 System.Console.ReadLine()
