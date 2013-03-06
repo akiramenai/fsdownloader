@@ -67,17 +67,21 @@ let books =
         |> fun y -> y.TrimEnd([|' '|]);
       folder + p + n'', l)
 
-let spawnDownloadTask task = 
+let downloadTask task = 
   let client = new WebClient()
-  Task.Factory.StartNew(fun () -> 
-    printfn "Downloading %s -> %s" (snd task) (fst task)
-    (fst task).Substring(0, (fst task).LastIndexOf(@"\"))
+  new System.Action(fun () -> 
+    printfn "Downloading..."
+    fst task 
+    |> fun (t:string) -> t.Substring(0, t.LastIndexOf(@"\"))
     |> fun dir -> Directory.CreateDirectory(dir)
     |> ignore
-    client.DownloadFile(new System.Uri(snd task), fst task))
+    client.DownloadFile(new System.Uri(snd task), fst task)
+    printfn "Downloaded!")
 
 printfn "Downloading to folder : %s" folder
-let downloadTasks = books |> List.map spawnDownloadTask |> List.toArray
-Task.WaitAll(downloadTasks)
-printfn "Done!"
+let dTasks = books |> List.map downloadTask |> List.toArray
+let parOpts = new ParallelOptions()
+parOpts.MaxDegreeOfParallelism <- 4
+Parallel.Invoke(parOpts, dTasks)
+printfn "Done!"  
 System.Console.ReadLine()
