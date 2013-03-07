@@ -50,10 +50,10 @@ let rec getBooks path pathLink acc =
           x.EndsWith("/") |> not)
       let (nextLevelLinks: (string*string) list) =
         nextLevel 
-//        |> PSeq.map (fun x -> getBooks (path + fst x) (path + snd x) [])
-//        |> PSeq.withDegreeOfParallelism concurLevel
-//        |> PSeq.toList
-        |> List.map (fun x -> getBooks (path + fst x) (path + snd x) [])
+        |> PSeq.map (fun x -> getBooks (path + fst x) (path + snd x) [])
+        |> PSeq.withDegreeOfParallelism concurLevel
+        |> PSeq.toList
+//        |> List.map (fun x -> getBooks (path + fst x) (path + snd x) [])
         |> List.concat
 
       lock(prnLock) (fun () -> printfn "Processed path: %s" path)
@@ -68,6 +68,8 @@ let outFile = new StreamWriter(folder + "/download_list.txt")
 
 books 
 |> List.iter (fun x -> outFile.WriteLine(x ||> sprintf "%s\t%s"))
+
+outFile.Close()
 
 printfn "Done!"
 System.Console.ReadLine()
