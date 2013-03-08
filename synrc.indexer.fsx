@@ -58,16 +58,17 @@ let rec getBooks path pathLink acc =
 
       lock(prnLock) (fun () -> printfn "Processed path: %s" path)
       levelLinks
-      |> List.map (fun x -> (path + (fst x), pathLink + (snd x)))
+      |> List.map (fun x -> (path + (fst x), path + (snd x)))
       |> List.append nextLevelLinks
 
 let books = 
   getBooks "" "" []
 
-let outFile = new StreamWriter(folder + "/download_list.txt")
+let outFile = new StreamWriter(folder + "/download.lst")
 
 books 
-|> List.iter (fun x -> outFile.WriteLine(x ||> sprintf "%s\t%s"))
+|> List.iter (fun x -> 
+  outFile.WriteLine(sprintf "%s\t%s" (fst x) (@"http://synrc.com/publications/cat/" + (snd x))))
 
 outFile.Close()
 
